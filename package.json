@@ -105,7 +105,9 @@
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test --label unit",
+    "test:integration": "vscode-test --label integration",
+    "test:all": "vscode-test"
   },
   "dependencies": {
     "xstate": "^5.30.0"

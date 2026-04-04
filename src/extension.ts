@@ -65,14 +65,6 @@ export async function activate(
     statusBar,
   );
 
-  syncDecryptButtonContext();
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("sops.showDecryptButton")) {
-        syncDecryptButtonContext();
-      }
-    }),
-  );
 
   log.info("Extension activated, checking already-open documents...");
   for (const doc of vscode.workspace.textDocuments) {
@@ -294,16 +286,6 @@ class SopsDecorationProvider implements vscode.FileDecorationProvider {
   }
 }
 
-function syncDecryptButtonContext(): void {
-  const show = vscode.workspace
-    .getConfiguration("sops")
-    .get<boolean>("showDecryptButton", true);
-  void vscode.commands.executeCommand(
-    "setContext",
-    "sops.showDecryptButton",
-    show,
-  );
-}
 
 function createStatusBarItem(): vscode.StatusBarItem {
   const item = vscode.window.createStatusBarItem(
