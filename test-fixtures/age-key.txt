@@ -1,0 +1,4 @@
+# TEST-ONLY key — committed intentionally for local development/testing.
+# Do NOT use this key for real secrets.
+# public key: age1m79x5ry490he8qlqn9az8rgwt45ulw87jkteelw4mjw466wtpc5qrt6nm2
+AGE-SECRET-KEY-17WSTLXT38H7404FVYMAY7TC6DXG3W8JK4W2QFNTXXF8YLN9YTZXQS2SSN7

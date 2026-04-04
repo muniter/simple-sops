@@ -1,0 +1,5 @@
+creation_rules:
+  - path_regex: \.sops\.
+    age: age1m79x5ry490he8qlqn9az8rgwt45ulw87jkteelw4mjw466wtpc5qrt6nm2
+  - path_regex: \.enc\.
+    age: age1m79x5ry490he8qlqn9az8rgwt45ulw87jkteelw4mjw466wtpc5qrt6nm2
