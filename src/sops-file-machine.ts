@@ -21,6 +21,8 @@ export interface SopsFileIO {
   getEditorContent: (filePath: string) => string | undefined;
   writeBuffer: (filePath: string, data: Uint8Array, mtime: number | undefined) => void;
   clearBuffer: (filePath: string) => void;
+  /** Check whether a tab is open for this file in the given scheme. */
+  isTabOpen: (filePath: string, scheme: "file" | "sops") => boolean;
 }
 
 export interface SopsFileContext {
@@ -41,7 +43,8 @@ export type SopsFileEvent =
   | { type: "ENCRYPT_ABORTED"; reason: string }
   | { type: "ENCRYPT_FAILED"; error: string }
   | { type: "REOPEN" }
-  | { type: "CLOSE" };
+  | { type: "DECRYPTED_TAB_CLOSED" }
+  | { type: "ENCRYPTED_TAB_CLOSED" };
 
 export type SopsFileEmitted =
   | { type: "decrypted"; filePath: string; config: SopsFileConfig }
@@ -138,6 +141,7 @@ export const sopsFileMachine = setup({
   guards: {
     isAutoOpen: ({ context }) => context.config.action === "auto-open",
     isPrompt: ({ context }) => context.config.action === "prompt",
+    isEncryptedTabOpen: ({ context }) => context.io.isTabOpen(context.filePath, "file"),
   },
 }).createMachine({
   id: "sopsFile",
@@ -182,7 +186,7 @@ export const sopsFileMachine = setup({
       },
       on: {
         DECRYPT: "decrypting",
-        CLOSE: "done",
+        ENCRYPTED_TAB_CLOSED: "done",
       },
     },
 
@@ -228,7 +232,7 @@ export const sopsFileMachine = setup({
         failed: {
           on: {
             DECRYPT: "active",
-            CLOSE: "#sopsFile.done",
+            ENCRYPTED_TAB_CLOSED: "#sopsFile.done",
           },
         },
       },
@@ -237,10 +241,13 @@ export const sopsFileMachine = setup({
     decrypted: {
       on: {
         ENCRYPT: "encrypting",
-        CLOSE: {
-          target: "done",
-          actions: ({ context }) => context.io.clearBuffer(context.filePath),
-        },
+        DECRYPTED_TAB_CLOSED: [
+          {
+            guard: "isEncryptedTabOpen",
+            target: "idle",
+          },
+          { target: "done" },
+        ],
         REOPEN: {
           actions: emit(({ context }) => ({
             type: "alreadyDecrypted" as const,
@@ -295,8 +302,22 @@ export const sopsFileMachine = setup({
       },
     },
 
+    idle: {
+      entry: ({ context }) => {
+        context.log.info(`idle: clearing buffer for ${context.filePath}`);
+        context.io.clearBuffer(context.filePath);
+      },
+      on: {
+        DECRYPT: "decrypting",
+        ENCRYPTED_TAB_CLOSED: "done",
+      },
+    },
+
     done: {
       type: "final",
+      entry: ({ context }) => {
+        context.io.clearBuffer(context.filePath);
+      },
     },
   },
 });

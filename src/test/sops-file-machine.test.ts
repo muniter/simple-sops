@@ -21,6 +21,7 @@ function mockIO(overrides?: Partial<SopsFileIO>): SopsFileIO {
     getEditorContent: sinon.stub().returns("editor content"),
     writeBuffer: sinon.stub(),
     clearBuffer: sinon.stub(),
+    isTabOpen: sinon.stub().returns(false),
     ...overrides,
   };
 }
@@ -236,14 +237,71 @@ suite("sopsFileMachine", () => {
     });
   });
 
-  suite("decrypted events", () => {
-    test("CLOSE goes to done and clears buffer", async () => {
+  suite("tab close and idle", () => {
+    test("DECRYPTED_TAB_CLOSED goes to done when encrypted tab is closed", async () => {
       const { actor, io } = await startDecrypted();
-      actor.send({ type: "CLOSE" });
+      // isTabOpen defaults to returning false (no encrypted tab open)
+      actor.send({ type: "DECRYPTED_TAB_CLOSED" });
       assert.strictEqual(actor.getSnapshot().status, "done");
       assert.ok((io.clearBuffer as sinon.SinonStub).calledWith("/test/secrets.sops.yaml"));
     });
 
+    test("DECRYPTED_TAB_CLOSED goes to idle when encrypted tab is still open", async () => {
+      const { actor, io } = await startDecrypted({
+        isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
+      });
+      actor.send({ type: "DECRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().value, "idle");
+      assert.ok((io.clearBuffer as sinon.SinonStub).calledWith("/test/secrets.sops.yaml"));
+    });
+
+    test("from idle, DECRYPT re-decrypts", async () => {
+      const { actor, emitted } = await startDecrypted({
+        isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
+      });
+      actor.send({ type: "DECRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().value, "idle");
+
+      actor.send({ type: "DECRYPT" });
+      await waitFor(actor, (s) => s.value === "decrypted");
+      assertEmitted(emitted, { type: "decrypted" });
+    });
+
+    test("from idle, ENCRYPTED_TAB_CLOSED goes to done", async () => {
+      const { actor } = await startDecrypted({
+        isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
+      });
+      actor.send({ type: "DECRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().value, "idle");
+
+      actor.send({ type: "ENCRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().status, "done");
+    });
+
+    test("ENCRYPTED_TAB_CLOSED from encrypted goes to done", async () => {
+      const { actor } = start("/test/file.sops.yaml", doNothing, mockIO());
+      await waitFor(actor, (s) => s.value === "encrypted");
+
+      actor.send({ type: "ENCRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().status, "done");
+    });
+
+    test("ENCRYPTED_TAB_CLOSED from decrypting.failed goes to done", async () => {
+      const io = mockIO({ decrypt: sinon.stub().rejects(new Error("no key")) });
+      const { actor } = start("/test/file.sops.yaml", doNothing, io);
+      await waitFor(actor, (s) => s.value === "encrypted");
+      actor.send({ type: "DECRYPT" });
+
+      await pollUntil(() => {
+        assert.ok(actor.getSnapshot().matches({ decrypting: "failed" }));
+      });
+
+      actor.send({ type: "ENCRYPTED_TAB_CLOSED" });
+      assert.strictEqual(actor.getSnapshot().status, "done");
+    });
+  });
+
+  suite("decrypted events", () => {
     test("REOPEN emits alreadyDecrypted", async () => {
       const { actor, emitted } = await startDecrypted();
       actor.send({ type: "REOPEN" });

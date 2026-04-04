@@ -2,6 +2,49 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import * as path from "node:path";
 
+// --- Test helpers ---
+
+/** Wait for a newly opened tab matching a predicate, or timeout. */
+function waitForTab(
+  predicate: (tab: vscode.Tab) => boolean,
+  timeoutMs = 2000,
+): Promise<vscode.Tab> {
+  return new Promise((resolve, reject) => {
+    // Already open?
+    const existing = findTab(predicate);
+    if (existing) { resolve(existing); return; }
+
+    const timer = setTimeout(() => {
+      sub.dispose();
+      reject(new Error("Timed out waiting for tab"));
+    }, timeoutMs);
+
+    const sub = vscode.window.tabGroups.onDidChangeTabs((e) => {
+      const tab = e.opened.find(predicate);
+      if (tab) {
+        clearTimeout(timer);
+        sub.dispose();
+        resolve(tab);
+      }
+    });
+  });
+}
+
+function findTab(predicate: (tab: vscode.Tab) => boolean): vscode.Tab | undefined {
+  return vscode.window.tabGroups.all.flatMap((g) => g.tabs).find(predicate);
+}
+
+function countTabs(predicate: (tab: vscode.Tab) => boolean): number {
+  return vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter(predicate).length;
+}
+
+const isSopsTab = (tab: vscode.Tab) =>
+  tab.input instanceof vscode.TabInputText && tab.input.uri.scheme === "sops";
+
+const waitForSopsTab = () => waitForTab(isSopsTab);
+const findSopsTab = () => findTab(isSopsTab);
+const countSopsTabs = () => countTabs(isSopsTab);
+
 suite("SOPS Extension Integration", () => {
   const fixturesPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
 
@@ -44,48 +87,25 @@ suite("SOPS Extension Integration", () => {
     const doc = await vscode.workspace.openTextDocument(filePath);
     await vscode.window.showTextDocument(doc);
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    const sopsTab = vscode.window.tabGroups.all
-      .flatMap((g) => g.tabs)
-      .find(
-        (t) =>
-          t.input instanceof vscode.TabInputText &&
-          t.input.uri.scheme === "sops",
-      );
-
+    const sopsTab = await waitForSopsTab();
     assert.ok(sopsTab, "A sops:// tab should be open after detection");
   });
 
   test("close both tabs, reopen encrypted -> fresh decrypt cycle", async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const sopsTabsBefore = vscode.window.tabGroups.all
-      .flatMap((g) => g.tabs)
-      .filter(
-        (t) =>
-          t.input instanceof vscode.TabInputText &&
-          t.input.uri.scheme === "sops",
-      );
-    assert.strictEqual(sopsTabsBefore.length, 0, "No sops:// tabs should remain");
+    assert.strictEqual(countSopsTabs(), 0, "No sops:// tabs should remain");
 
     const filePath = path.join(fixturesPath, "secrets.sops.yaml");
     const doc = await vscode.workspace.openTextDocument(filePath);
     await vscode.window.showTextDocument(doc);
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await waitForSopsTab();
 
-    const sopsTabsAfter = vscode.window.tabGroups.all
-      .flatMap((g) => g.tabs)
-      .filter(
-        (t) =>
-          t.input instanceof vscode.TabInputText &&
-          t.input.uri.scheme === "sops",
-      );
-    assert.strictEqual(sopsTabsAfter.length, 1, "A new sops:// tab should open");
+    assert.strictEqual(countSopsTabs(), 1, "A new sops:// tab should open");
 
-    const sopsUri = (sopsTabsAfter[0].input as vscode.TabInputText).uri;
+    const sopsTab = findSopsTab()!;
+    const sopsUri = (sopsTab.input as vscode.TabInputText).uri;
     const decryptedDoc = await vscode.workspace.openTextDocument(sopsUri);
     const text = decryptedDoc.getText();
     assert.ok(!text.includes("ENC[AES256_GCM"), "Should be decrypted plaintext");

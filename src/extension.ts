@@ -46,10 +46,22 @@ export async function activate(
 
     vscode.workspace.onDidOpenTextDocument((doc) => onDocumentOpened(doc)),
 
-    vscode.workspace.onDidCloseTextDocument((doc) => {
-      if (doc.uri.scheme === SOPS_SCHEME) {
-        log.info(`sops:// document closed: ${doc.uri.path}`);
-        fsProvider.sendClose(doc.uri.path);
+    vscode.window.tabGroups.onDidChangeTabs((e) => {
+      for (const tab of e.closed) {
+        if (!(tab.input instanceof vscode.TabInputText)) {
+          continue;
+        }
+        const uri = tab.input.uri;
+        if (uri.scheme === SOPS_SCHEME) {
+          log.info(`sops:// tab closed: ${uri.path}`);
+          fsProvider.sendDecryptedTabClosed(uri.path);
+        } else if (uri.scheme === "file") {
+          const filePath = uri.fsPath;
+          if (fsProvider.isTracked(filePath)) {
+            log.info(`encrypted tab closed: ${filePath}`);
+            fsProvider.sendEncryptedTabClosed(filePath);
+          }
+        }
       }
     }),
 
@@ -135,7 +147,7 @@ function handleDecryptCommand(fileUri?: vscode.Uri): void {
 
   const filePath = fileUri.fsPath;
 
-  if (fsProvider.matches(filePath, "encrypted") || fsProvider.matches(filePath, { decrypting: "failed" })) {
+  if (fsProvider.matches(filePath, "encrypted") || fsProvider.matches(filePath, { decrypting: "failed" }) || fsProvider.matches(filePath, "idle")) {
     fsProvider.sendDecrypt(filePath);
   } else if (fsProvider.matches(filePath, "decrypted")) {
     fsProvider.sendReopen(filePath);
@@ -154,9 +166,6 @@ function onDocumentOpened(doc: vscode.TextDocument): void {
     const sopsUri = vscode.Uri.from({ scheme: SOPS_SCHEME, path: filePath });
     if (isTabOpen(sopsUri)) {
       fsProvider.sendReopen(filePath);
-    } else {
-      fsProvider.sendClose(filePath);
-      fsProvider.track(filePath, getConfig());
     }
     return;
   }

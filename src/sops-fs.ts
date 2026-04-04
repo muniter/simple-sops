@@ -58,6 +58,23 @@ export class SopsFileSystemProvider implements vscode.FileSystemProvider {
       this._content.delete(filePath);
       this._mtimes.delete(filePath);
     },
+    isTabOpen: (filePath, scheme) => {
+      const uri = scheme === "sops"
+        ? vscode.Uri.from({ scheme: SOPS_SCHEME, path: filePath })
+        : vscode.Uri.file(filePath);
+      const uriStr = uri.toString();
+      for (const group of vscode.window.tabGroups.all) {
+        for (const tab of group.tabs) {
+          if (
+            tab.input instanceof vscode.TabInputText &&
+            tab.input.uri.toString() === uriStr
+          ) {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
   };
 
   // --- Actor management ---
@@ -112,15 +129,14 @@ export class SopsFileSystemProvider implements vscode.FileSystemProvider {
     this._actors.get(filePath)?.send({ type: "REOPEN" });
   }
 
-  sendClose(filePath: string): void {
-    log.info(`sendClose: ${filePath}`);
-    const actor = this._actors.get(filePath);
-    if (actor) {
-      log.info(`sendClose: stopping actor for ${filePath}`);
-      actor.stop();
-      this._actors.delete(filePath);
-    }
-    this._io.clearBuffer(filePath);
+  sendDecryptedTabClosed(filePath: string): void {
+    log.info(`sendDecryptedTabClosed: ${filePath}`);
+    this._actors.get(filePath)?.send({ type: "DECRYPTED_TAB_CLOSED" });
+  }
+
+  sendEncryptedTabClosed(filePath: string): void {
+    log.info(`sendEncryptedTabClosed: ${filePath}`);
+    this._actors.get(filePath)?.send({ type: "ENCRYPTED_TAB_CLOSED" });
   }
 
   // --- FileSystemProvider interface ---
