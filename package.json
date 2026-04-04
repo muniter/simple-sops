@@ -3,7 +3,7 @@
   "displayName": "Simple SOPS",
   "description": "Seamlessly decrypt, edit, and re-encrypt SOPS files",
   "version": "0.0.1",
-  "publisher": "muniter",
+  "publisher": "javierlopez",
   "license": "MIT",
   "repository": {
     "type": "git",

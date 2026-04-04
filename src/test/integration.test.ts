@@ -49,7 +49,7 @@ suite("SOPS Extension Integration", () => {
   const fixturesPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
 
   test("extension activates", async () => {
-    const ext = vscode.extensions.getExtension("muniter.simple-sops");
+    const ext = vscode.extensions.getExtension("javierlopez.simple-sops");
     assert.ok(ext, "Extension should be installed");
     await ext.activate();
     assert.strictEqual(ext.isActive, true);
