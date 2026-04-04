@@ -101,27 +101,29 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "tsgo -p ./",
+    "watch": "tsgo -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src",
-    "test": "vscode-test --label unit",
+    "test": "mocha --ui tdd out/test/sops-file-machine.test.js",
     "test:integration": "vscode-test --label integration",
-    "test:all": "vscode-test"
+    "test:all": "pnpm run test && pnpm run test:integration"
   },
   "dependencies": {
     "xstate": "^5.30.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.110.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/sinon": "^17.0.4",
-    "sinon": "^19.0.2",
-    "typescript-eslint": "^8.56.1",
-    "eslint": "^9.39.3",
-    "typescript": "^5.9.3",
+    "@types/vscode": "^1.110.0",
+    "@typescript/native-preview": "7.0.0-dev.20260404.1",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.3",
+    "mocha": "^11.7.5",
+    "sinon": "^19.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
   }
 }
