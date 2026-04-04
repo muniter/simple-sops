@@ -1,71 +1,44 @@
-# simple-sops README
+# Simple SOPS
 
-This is the README for your extension "simple-sops". After writing up a brief description, we recommend including the following sections.
+Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops) files inside VS Code and Cursor.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- **Auto-detect** SOPS encrypted files (`*.sops.*` and `*.enc.{yaml,yml,json}`)
+- **Decrypt and open** in a virtual `sops://` editor — plaintext never touches disk
+- **Save to re-encrypt** — just press `Ctrl+S` / `Cmd+S`, encryption is handled transparently
+- **Stale write detection** — warns if the file changed on disk while you were editing
+- **Configurable behavior** — auto-open, prompt, or manual decrypt
+- **Context menu and title bar** — right-click any SOPS file to decrypt
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- [SOPS](https://github.com/getsops/sops) must be installed and available on your `PATH`
+- A configured encryption backend (age, AWS KMS, GCP KMS, Azure Key Vault, PGP)
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+| Setting | Default | Description |
+|---|---|---|
+| `sops.action` | `auto-open` | What to do when a SOPS file is opened: `auto-open`, `prompt`, or `do-nothing` |
+| `sops.encryptedFileTab` | `close` | Close or keep the encrypted tab after opening the decrypted view |
+| `sops.showDecryptButton` | `true` | Show a decrypt button in the editor title bar |
+| `sops.env` | `{}` | Environment variables passed to SOPS (e.g. `SOPS_AGE_KEY_FILE`). Relative paths are resolved from the workspace root. |
 
-For example:
+## Commands
 
-This extension contributes the following settings:
+| Command | Description |
+|---|---|
+| `SOPS: Decrypt and Open` | Decrypt the selected file and open the plaintext view |
+| `SOPS: Show Output Log` | Show the extension's output log |
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## How It Works
 
-## Known Issues
+1. When you open an encrypted file, the extension detects it as SOPS-encrypted
+2. It runs `sops decrypt` to get the plaintext and shows it in a virtual `sops://` editor
+3. When you save, it uses the `EDITOR` trick (`sops edit`) to re-encrypt — all key management is delegated to SOPS
+4. The decrypted content only exists in memory, never written to disk
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## License
 
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+MIT

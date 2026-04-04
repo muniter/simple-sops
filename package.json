@@ -4,11 +4,24 @@
   "description": "Seamlessly decrypt, edit, and re-encrypt SOPS files",
   "version": "0.0.1",
   "publisher": "muniter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muniter/simple-sops"
+  },
   "engines": {
     "vscode": "^1.110.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "sops",
+    "secrets",
+    "encryption",
+    "decrypt",
+    "age",
+    "kms"
   ],
   "activationEvents": [
     "onFileSystem:sops",
