@@ -15,9 +15,6 @@ export function info(message: string): void {
   channel?.appendLine(`[${timestamp()}] INFO: ${message}`);
 }
 
-export function warn(message: string): void {
-  channel?.appendLine(`[${timestamp()}] WARN: ${message}`);
-}
 
 export function error(message: string): void {
   channel?.appendLine(`[${timestamp()}] ERROR: ${message}`);

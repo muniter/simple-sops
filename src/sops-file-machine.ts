@@ -25,7 +25,7 @@ export interface SopsFileIO {
   isTabOpen: (filePath: string, scheme: "file" | "sops") => boolean;
 }
 
-export interface SopsFileContext {
+interface SopsFileContext {
   filePath: string;
   config: SopsFileConfig;
   io: SopsFileIO;
@@ -33,7 +33,7 @@ export interface SopsFileContext {
   error: string | undefined;
 }
 
-export type SopsFileEvent =
+type SopsFileEvent =
   | { type: "DETECTED_SOPS" }
   | { type: "DETECTED_NOT_SOPS" }
   | { type: "DETECT_ERROR"; error: string }
@@ -55,7 +55,7 @@ export type SopsFileEmitted =
   | { type: "promptDecrypt"; filePath: string }
   | { type: "alreadyDecrypted"; filePath: string };
 
-export type SopsFileInput = {
+type SopsFileInput = {
   filePath: string;
   config: SopsFileConfig;
   io: SopsFileIO;
