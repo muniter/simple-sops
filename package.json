@@ -157,12 +157,5 @@
     "sinon": "^19.0.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
-  },
-  "files": [
-    "src/**",
-    "images/**",
-    "package.json",
-    "README.md",
-    "LICENSE"
-  ]
+  }
 }
