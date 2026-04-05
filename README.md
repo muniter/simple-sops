@@ -2,7 +2,7 @@
 
 Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops) files inside VS Code and Cursor.
 
-![Demo](images/demo.gif)
+![Demo](https://raw.githubusercontent.com/muniter/simple-sops/master/images/demo.gif)
 
 ## Features
 

@@ -2,7 +2,7 @@
   "name": "simple-sops",
   "displayName": "Simple SOPS",
   "description": "Seamlessly decrypt, edit, and re-encrypt SOPS files",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "javierlopez",
   "license": "MIT",
   "repository": {

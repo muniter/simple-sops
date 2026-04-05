@@ -3,6 +3,8 @@
 src/**
 out/test/**
 test-fixtures/**
+CLAUDE.md
+images/demo.gif
 .gitignore
 .npmrc
 .sops.yaml
