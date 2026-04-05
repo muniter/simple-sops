@@ -3,7 +3,7 @@ import { chmod, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, isAbsolute } from "node:path";
 import * as vscode from "vscode";
-import * as log from "./log.js";
+import * as log from "./log.ts";
 
 /** Path-like env vars that should be resolved relative to the workspace root. */
 const PATH_ENV_VARS = new Set(["SOPS_AGE_KEY_FILE"]);

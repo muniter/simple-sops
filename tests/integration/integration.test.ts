@@ -2,17 +2,17 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import * as path from "node:path";
 
-// --- Test helpers ---
-
 /** Wait for a newly opened tab matching a predicate, or timeout. */
 function waitForTab(
   predicate: (tab: vscode.Tab) => boolean,
   timeoutMs = 2000,
 ): Promise<vscode.Tab> {
   return new Promise((resolve, reject) => {
-    // Already open?
     const existing = findTab(predicate);
-    if (existing) { resolve(existing); return; }
+    if (existing) {
+      resolve(existing);
+      return;
+    }
 
     const timer = setTimeout(() => {
       sub.dispose();

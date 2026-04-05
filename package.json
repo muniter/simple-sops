@@ -4,6 +4,7 @@
   "description": "Seamlessly decrypt, edit, and re-encrypt SOPS files",
   "version": "0.0.3",
   "publisher": "javierlopez",
+  "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,7 +16,7 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.105.0"
+    "vscode": "^1.114.0"
   },
   "categories": [
     "Other"
@@ -35,7 +36,7 @@
     "onLanguage:plaintext",
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./src/extension.ts",
   "contributes": {
     "commands": [
       {
@@ -118,16 +119,16 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
-    "compile": "tsgo -p ./",
-    "watch": "tsgo -watch -p ./",
-    "pretest": "pnpm run compile && pnpm run lint",
+    "vscode:prepublish": "pnpm run lint && pnpm run test && pnpm run compile:integration",
+    "compile:integration": "tsc -p tsconfig.integration.json",
+    "watch": "tsgo -watch -p ./ --noEmit",
+    "typecheck": "tsgo -p ./ --noEmit && tsc -p tsconfig.integration.json --noEmit",
     "eslint": "eslint src",
     "knip": "knip",
     "knip:production": "knip --production",
-    "lint": "pnpm run eslint && pnpm run compile && pnpm run knip",
-    "test": "mocha --ui tdd out/test/sops-file-machine.test.js",
-    "test:integration": "vscode-test --label integration",
+    "lint": "pnpm run eslint && pnpm run typecheck && pnpm run knip",
+    "test": "node --test tests/unit/**/*.test.ts",
+    "test:integration": "pnpm run compile:integration && vscode-test --label integration",
     "test:all": "pnpm run test && pnpm run test:integration"
   },
   "dependencies": {
@@ -135,7 +136,8 @@
   },
   "knip": {
     "entry": [
-      "src/test/**/*.test.ts",
+      "tests/unit/**/*.test.ts",
+      "tests/integration/**/*.test.ts",
       ".vscode-test.mjs"
     ],
     "ignoreDependencies": [
@@ -146,15 +148,21 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/sinon": "^17.0.4",
-    "@types/vscode": "^1.105.0",
+    "@types/vscode": "^1.114.0",
     "@typescript/native-preview": "7.0.0-dev.20260404.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.3",
     "knip": "^6.3.0",
-    "mocha": "^11.7.5",
     "sinon": "^19.0.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
-  }
+  },
+  "files": [
+    "src/**",
+    "images/**",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ]
 }

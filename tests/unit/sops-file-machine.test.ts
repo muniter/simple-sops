@@ -1,4 +1,5 @@
-import * as assert from "assert";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import * as sinon from "sinon";
 import { createActor, waitFor } from "xstate";
 import {
@@ -7,7 +8,7 @@ import {
   type SopsFileConfig,
   type SopsFileEmitted,
   type SopsFileLogger,
-} from "../sops-file-machine.js";
+} from "../../src/sops-file-machine.ts";
 
 const noopLog: SopsFileLogger = { info: () => {}, error: () => {} };
 
@@ -47,7 +48,6 @@ async function startDecrypted(ioOverrides?: Partial<SopsFileIO>) {
   return { actor, io, emitted };
 }
 
-/** Poll until an assertion passes (replaces vitest's vi.waitFor). */
 async function pollUntil(fn: () => void, timeoutMs = 3000, intervalMs = 50): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
@@ -63,7 +63,6 @@ async function pollUntil(fn: () => void, timeoutMs = 3000, intervalMs = 50): Pro
   throw lastError;
 }
 
-/** Check if emitted array contains an event matching the given partial object. */
 function assertEmitted(emitted: SopsFileEmitted[], partial: Partial<SopsFileEmitted>): void {
   const found = emitted.some((e) =>
     Object.entries(partial).every(
@@ -76,15 +75,15 @@ function assertEmitted(emitted: SopsFileEmitted[], partial: Partial<SopsFileEmit
   );
 }
 
-suite("sopsFileMachine", () => {
-  suite("detecting", () => {
-    test("goes to done when not SOPS", async () => {
+describe("sopsFileMachine", () => {
+  describe("detecting", () => {
+    it("goes to done when not SOPS", async () => {
       const { actor } = start("/test/file.yaml", autoOpen, mockIO({ detect: sinon.stub().resolves(false) }));
       const snap = await waitFor(actor, (s) => s.value === "done");
       assert.strictEqual(snap.value, "done");
     });
 
-    test("goes to done on detect error", async () => {
+    it("goes to done on detect error", async () => {
       const { actor } = start("/test/file.yaml", autoOpen, mockIO({
         detect: sinon.stub().rejects(new Error("detect boom")),
       }));
@@ -92,21 +91,21 @@ suite("sopsFileMachine", () => {
       assert.strictEqual(snap.context.error, "detect boom");
     });
 
-    test("goes to encrypted when SOPS detected (do-nothing stays)", async () => {
+    it("goes to encrypted when SOPS detected (do-nothing stays)", async () => {
       const { actor } = start("/test/file.sops.yaml", doNothing, mockIO());
       const snap = await waitFor(actor, (s) => s.value === "encrypted");
       assert.strictEqual(snap.value, "encrypted");
     });
 
-    test("emits promptDecrypt when config is prompt", async () => {
+    it("emits promptDecrypt when config is prompt", async () => {
       const { actor, emitted } = start("/test/file.sops.yaml", prompt, mockIO());
       await waitFor(actor, (s) => s.value === "encrypted");
       assertEmitted(emitted, { type: "promptDecrypt", filePath: "/test/file.sops.yaml" });
     });
   });
 
-  suite("auto-open flow", () => {
-    test("detecting -> encrypted -> decrypting -> decrypted", async () => {
+  describe("auto-open flow", () => {
+    it("detecting -> encrypted -> decrypting -> decrypted", async () => {
       const io = mockIO();
       const { actor, emitted } = start("/test/secrets.sops.yaml", autoOpen, io);
 
@@ -116,7 +115,7 @@ suite("sopsFileMachine", () => {
       assertEmitted(emitted, { type: "decrypted", filePath: "/test/secrets.sops.yaml" });
     });
 
-    test("does not loop infinitely when decrypt fails, lands in decrypting.failed", async () => {
+    it("does not loop infinitely when decrypt fails, lands in decrypting.failed", async () => {
       let calls = 0;
       const io = mockIO({
         decrypt: sinon.stub().callsFake(async () => { calls++; throw new Error("no key"); }),
@@ -130,7 +129,7 @@ suite("sopsFileMachine", () => {
       assert.strictEqual(actor.getSnapshot().context.error, "no key");
     });
 
-    test("can retry from decrypting.failed", async () => {
+    it("can retry from decrypting.failed", async () => {
       const decryptStub = sinon.stub()
         .onFirstCall().rejects(new Error("no key"))
         .onSecondCall().resolves("decrypted content");
@@ -148,8 +147,8 @@ suite("sopsFileMachine", () => {
     });
   });
 
-  suite("manual decrypt", () => {
-    test("waits for DECRYPT when do-nothing", async () => {
+  describe("manual decrypt", () => {
+    it("waits for DECRYPT when do-nothing", async () => {
       const io = mockIO();
       const { actor } = start("/test/file.sops.yaml", doNothing, io);
 
@@ -161,7 +160,7 @@ suite("sopsFileMachine", () => {
       assert.ok((io.decrypt as sinon.SinonStub).called);
     });
 
-    test("decrypt failure goes to decrypting.failed", async () => {
+    it("decrypt failure goes to decrypting.failed", async () => {
       const io = mockIO({ decrypt: sinon.stub().rejects(new Error("no key")) });
       const { actor, emitted } = start("/test/file.sops.yaml", doNothing, io);
 
@@ -175,8 +174,8 @@ suite("sopsFileMachine", () => {
     });
   });
 
-  suite("encrypting", () => {
-    test("encrypts successfully", async () => {
+  describe("encrypting", () => {
+    it("encrypts successfully", async () => {
       const { actor, io, emitted } = await startDecrypted();
 
       actor.send({ type: "ENCRYPT" });
@@ -187,7 +186,7 @@ suite("sopsFileMachine", () => {
       assert.ok((io.writeBuffer as sinon.SinonStub).called);
     });
 
-    test("fails when no editor content", async () => {
+    it("fails when no editor content", async () => {
       const { actor, emitted } = await startDecrypted({
         getEditorContent: sinon.stub().returns(undefined),
       });
@@ -198,7 +197,7 @@ suite("sopsFileMachine", () => {
       });
     });
 
-    test("aborts on stale mtime", async () => {
+    it("aborts on stale mtime", async () => {
       const { actor, emitted } = await startDecrypted({
         getLastReadMtime: sinon.stub().returns(1000),
         getEncryptedFileMtime: sinon.stub().resolves(2000),
@@ -211,7 +210,7 @@ suite("sopsFileMachine", () => {
       assert.strictEqual(actor.getSnapshot().value, "decrypted");
     });
 
-    test("skips mtime check with overwrite: true", async () => {
+    it("skips mtime check with overwrite: true", async () => {
       const { actor, io, emitted } = await startDecrypted({
         getLastReadMtime: sinon.stub().returns(1000),
         getEncryptedFileMtime: sinon.stub().resolves(2000),
@@ -224,7 +223,7 @@ suite("sopsFileMachine", () => {
       assert.ok((io.encrypt as sinon.SinonStub).called);
     });
 
-    test("emits encryptFailed on error", async () => {
+    it("emits encryptFailed on error", async () => {
       const { actor, emitted } = await startDecrypted({
         encrypt: sinon.stub().rejects(new Error("kms error")),
       });
@@ -237,16 +236,15 @@ suite("sopsFileMachine", () => {
     });
   });
 
-  suite("tab close and idle", () => {
-    test("DECRYPTED_TAB_CLOSED goes to done when encrypted tab is closed", async () => {
+  describe("tab close and idle", () => {
+    it("DECRYPTED_TAB_CLOSED goes to done when encrypted tab is closed", async () => {
       const { actor, io } = await startDecrypted();
-      // isTabOpen defaults to returning false (no encrypted tab open)
       actor.send({ type: "DECRYPTED_TAB_CLOSED" });
       assert.strictEqual(actor.getSnapshot().status, "done");
       assert.ok((io.clearBuffer as sinon.SinonStub).calledWith("/test/secrets.sops.yaml"));
     });
 
-    test("DECRYPTED_TAB_CLOSED goes to idle when encrypted tab is still open", async () => {
+    it("DECRYPTED_TAB_CLOSED goes to idle when encrypted tab is still open", async () => {
       const { actor, io } = await startDecrypted({
         isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
       });
@@ -255,7 +253,7 @@ suite("sopsFileMachine", () => {
       assert.ok((io.clearBuffer as sinon.SinonStub).calledWith("/test/secrets.sops.yaml"));
     });
 
-    test("from idle, DECRYPT re-decrypts", async () => {
+    it("from idle, DECRYPT re-decrypts", async () => {
       const { actor, emitted } = await startDecrypted({
         isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
       });
@@ -267,7 +265,7 @@ suite("sopsFileMachine", () => {
       assertEmitted(emitted, { type: "decrypted" });
     });
 
-    test("from idle, ENCRYPTED_TAB_CLOSED goes to done", async () => {
+    it("from idle, ENCRYPTED_TAB_CLOSED goes to done", async () => {
       const { actor } = await startDecrypted({
         isTabOpen: sinon.stub().callsFake((_path: string, scheme: string) => scheme === "file"),
       });
@@ -278,7 +276,7 @@ suite("sopsFileMachine", () => {
       assert.strictEqual(actor.getSnapshot().status, "done");
     });
 
-    test("ENCRYPTED_TAB_CLOSED from encrypted goes to done", async () => {
+    it("ENCRYPTED_TAB_CLOSED from encrypted goes to done", async () => {
       const { actor } = start("/test/file.sops.yaml", doNothing, mockIO());
       await waitFor(actor, (s) => s.value === "encrypted");
 
@@ -286,7 +284,7 @@ suite("sopsFileMachine", () => {
       assert.strictEqual(actor.getSnapshot().status, "done");
     });
 
-    test("ENCRYPTED_TAB_CLOSED from decrypting.failed goes to done", async () => {
+    it("ENCRYPTED_TAB_CLOSED from decrypting.failed goes to done", async () => {
       const io = mockIO({ decrypt: sinon.stub().rejects(new Error("no key")) });
       const { actor } = start("/test/file.sops.yaml", doNothing, io);
       await waitFor(actor, (s) => s.value === "encrypted");
@@ -301,8 +299,8 @@ suite("sopsFileMachine", () => {
     });
   });
 
-  suite("decrypted events", () => {
-    test("REOPEN emits alreadyDecrypted", async () => {
+  describe("decrypted events", () => {
+    it("REOPEN emits alreadyDecrypted", async () => {
       const { actor, emitted } = await startDecrypted();
       actor.send({ type: "REOPEN" });
       assert.strictEqual(actor.getSnapshot().value, "decrypted");

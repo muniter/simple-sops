@@ -3,15 +3,8 @@ import { resolve } from 'node:path';
 
 export default defineConfig([
 	{
-		label: 'unit',
-		files: 'out/test/sops-file-machine.test.js',
-		mocha: {
-			timeout: 10000,
-		},
-	},
-	{
 		label: 'integration',
-		files: 'out/test/integration.test.js',
+		files: 'out-test/integration.test.js',
 		workspaceFolder: resolve('test-fixtures'),
 		mocha: {
 			timeout: 15000,

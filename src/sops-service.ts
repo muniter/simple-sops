@@ -5,15 +5,15 @@ import {
   type SopsFileConfig,
   type SopsFileEmitted,
   type SopsFileIO,
-} from "./sops-file-machine.js";
+} from "./sops-file-machine.ts";
 import {
   isDefinitelySops,
   isMaybeSops,
   hasSopsMetadata,
   getLanguageId,
-} from "./detect.js";
-import { decrypt, encrypt, getEncryptedFileMtime } from "./sops.js";
-import * as log from "./log.js";
+} from "./detect.ts";
+import { decrypt, encrypt, getEncryptedFileMtime } from "./sops.ts";
+import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
 type SopsActor = Actor<typeof sopsFileMachine>;

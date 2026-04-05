@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"target": "ESNext",
+		"outDir": "out-test",
+		"rootDir": "tests/integration",
+		"lib": ["ESNext"],
+		"types": ["node", "mocha", "vscode"],
+		"sourceMap": true,
+		"strict": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true
+	},
+	"include": ["tests/integration/**/*.ts"],
+	"exclude": ["node_modules"]
+}

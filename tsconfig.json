@@ -1,22 +1,23 @@
 {
 	"compilerOptions": {
+		"noEmit": true,
 		"module": "NodeNext",
 		"target": "ESNext",
-		"outDir": "out",
+		"erasableSyntaxOnly": true,
+		"verbatimModuleSyntax": true,
+		"allowImportingTsExtensions": true,
+		"rootDir": ".",
 		"lib": [
 			"ESNext"
 		],
 		"types": [
 			"node",
-			"mocha",
 			"vscode"
 		],
-		"sourceMap": true,
-		"rootDir": "src",
 		"strict": true,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["src"],
+	"include": ["src", "tests/unit"],
 	"exclude": ["node_modules"]
 }

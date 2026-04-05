@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { SopsService } from "./sops-service.js";
-import { SopsFileSystemProvider } from "./sops-fs.js";
-import { getSopsBinary } from "./sops.js";
-import * as log from "./log.js";
+import { SopsService } from "./sops-service.ts";
+import { SopsFileSystemProvider } from "./sops-fs.ts";
+import { getSopsBinary } from "./sops.ts";
+import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
 
@@ -58,12 +58,12 @@ export async function activate(
     statusBar,
   );
 
-  log.info("Extension activated, checking already-open documents...");
   for (const doc of vscode.workspace.textDocuments) {
     service.onDocumentOpened(doc);
   }
 
   updateStatusBar(statusBar, vscode.window.activeTextEditor);
+  void fsProvider;
 }
 
 export function deactivate(): void {

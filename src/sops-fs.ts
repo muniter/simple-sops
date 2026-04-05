@@ -1,12 +1,15 @@
 import * as vscode from "vscode";
 import { stat } from "node:fs/promises";
-import type { SopsService } from "./sops-service.js";
+import type { SopsService } from "./sops-service.ts";
 
 export class SopsFileSystemProvider implements vscode.FileSystemProvider {
   private readonly _changeEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   readonly onDidChangeFile = this._changeEmitter.event;
+  private readonly _service: SopsService;
 
-  constructor(private readonly _service: SopsService) {}
+  constructor(service: SopsService) {
+    this._service = service;
+  }
 
   watch(): vscode.Disposable {
     return new vscode.Disposable(() => {});
