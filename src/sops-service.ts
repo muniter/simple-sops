@@ -149,10 +149,6 @@ export class SopsService {
 
     const filePath = doc.uri.fsPath;
     if (this.matches(filePath, "decrypted")) {
-      const sopsUri = vscode.Uri.from({ scheme: SOPS_SCHEME, path: filePath });
-      if (this._isTabOpen(sopsUri)) {
-        this.sendReopen(filePath);
-      }
       return;
     }
 
@@ -280,7 +276,7 @@ export class SopsService {
       action: config.get<SopsFileConfig["action"]>("action", "auto-open"),
       encryptedFileTab: config.get<SopsFileConfig["encryptedFileTab"]>(
         "encryptedFileTab",
-        "close",
+        "keep",
       ),
     };
   }
@@ -296,10 +292,12 @@ export class SopsService {
     try {
       const doc = await vscode.workspace.openTextDocument(sopsUri);
       await vscode.languages.setTextDocumentLanguage(doc, getLanguageId(filePath));
-      await vscode.window.showTextDocument(doc);
 
       if (config.encryptedFileTab === "close") {
+        await vscode.window.showTextDocument(doc);
         await this._closeTab(vscode.Uri.file(filePath));
+      } else {
+        await vscode.window.showTextDocument(doc, { preview: false });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -2,14 +2,16 @@
 
 Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops) files inside VS Code and Cursor.
 
+![Demo](images/demo.gif)
+
 ## Features
 
 - **Auto-detect** SOPS encrypted files (`*.sops.*` and `*.enc.{yaml,yml,json}`)
-- **Decrypt and open** in a virtual `sops://` editor — plaintext never touches disk
-- **Save to re-encrypt** — just press `Ctrl+S` / `Cmd+S`, encryption is handled transparently
-- **Stale write detection** — warns if the file changed on disk while you were editing
-- **Configurable behavior** — auto-open, prompt, or manual decrypt
-- **Context menu and title bar** — right-click any SOPS file to decrypt
+- **Decrypt and open** in a virtual `sops://` editor - plaintext never touches disk
+- **Save to re-encrypt** - just press `Ctrl+S` / `Cmd+S`, encryption is handled transparently
+- **Stale write detection** - warns if the file changed on disk while you were editing
+- **Configurable behavior** - auto-open, prompt, or manual decrypt
+- **Context menu and title bar** - right-click any SOPS file to decrypt
 
 ## Requirements
 
@@ -36,7 +38,7 @@ Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops)
 
 1. When you open an encrypted file, the extension detects it as SOPS-encrypted
 2. It runs `sops decrypt` to get the plaintext and shows it in a virtual `sops://` editor
-3. When you save, it uses the `EDITOR` trick (`sops edit`) to re-encrypt — all key management is delegated to SOPS
+3. When you save, it uses the `EDITOR` trick (`sops edit`) to re-encrypt - all key management is delegated to SOPS
 4. The decrypted content only exists in memory, never written to disk
 
 ## License

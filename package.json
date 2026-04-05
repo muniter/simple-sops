@@ -9,8 +9,13 @@
     "type": "git",
     "url": "https://github.com/muniter/simple-sops"
   },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.105.0"
   },
   "categories": [
     "Other"
@@ -79,16 +84,16 @@
           "enumDescriptions": [
             "Automatically decrypt and open SOPS files when detected",
             "Show a notification asking whether to decrypt",
-            "Do nothing — use the 'SOPS: Decrypt and Open' command manually"
+            "Do nothing - use the 'SOPS: Decrypt and Open' command manually"
           ],
           "description": "What to do when a SOPS encrypted file is opened."
         },
         "sops.encryptedFileTab": {
           "type": "string",
-          "default": "close",
+          "default": "keep",
           "enum": [
-            "close",
-            "keep"
+            "keep",
+            "close"
           ],
           "enumDescriptions": [
             "Close the encrypted file tab after opening the decrypted view",
@@ -141,7 +146,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/sinon": "^17.0.4",
-    "@types/vscode": "^1.110.0",
+    "@types/vscode": "^1.105.0",
     "@typescript/native-preview": "7.0.0-dev.20260404.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
