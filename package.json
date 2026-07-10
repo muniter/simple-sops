@@ -36,7 +36,7 @@
     "onLanguage:plaintext",
     "onStartupFinished"
   ],
-  "main": "./src/extension.ts",
+  "main": "./dist/extension.cjs",
   "contributes": {
     "commands": [
       {
@@ -119,16 +119,19 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run lint && pnpm run test && pnpm run compile:integration",
-    "compile:integration": "tsc -p tsconfig.integration.json",
+    "vscode:prepublish": "pnpm run lint && pnpm run test && pnpm run bundle",
+    "bundle": "esbuild src/extension.ts --bundle --external:vscode --format=cjs --platform=node --sourcemap --outfile=dist/extension.cjs",
+    "package": "vsce package --no-dependencies",
+    "compile:integration": "tsc -p tsconfig.integration.json && node -e \"require('fs').writeFileSync('out-test/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\"",
     "watch": "tsgo -watch -p ./ --noEmit",
+    "watch:bundle": "pnpm run bundle --watch",
     "typecheck": "tsgo -p ./ --noEmit && tsc -p tsconfig.integration.json --noEmit",
     "eslint": "eslint src",
     "knip": "knip",
     "knip:production": "knip --production",
     "lint": "pnpm run eslint && pnpm run typecheck && pnpm run knip",
     "test": "node --test tests/unit/**/*.test.ts",
-    "test:integration": "pnpm run compile:integration && vscode-test --label integration",
+    "test:integration": "pnpm run compile:integration && pnpm run bundle && vscode-test --label integration",
     "test:all": "pnpm run test && pnpm run test:integration"
   },
   "dependencies": {
@@ -146,6 +149,8 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
+    "@vscode/vsce": "^3.6.2",
+    "esbuild": "^0.25.10",
     "@types/node": "22.x",
     "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.114.0",

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { SopsService } from "./sops-service.ts";
 import { SopsFileSystemProvider } from "./sops-fs.ts";
-import { getSopsBinary } from "./sops.ts";
+import { getSopsVersion } from "./sops.ts";
 import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
@@ -11,16 +11,6 @@ export async function activate(
 ): Promise<void> {
   context.subscriptions.push(log.init());
   log.info("SOPS Edit extension activating...");
-
-  const sopsBinary = await getSopsBinary();
-  if (!sopsBinary) {
-    log.error("sops binary not found on PATH");
-    vscode.window.showErrorMessage(
-      "SOPS binary not found. Install sops and make sure it's on your PATH.",
-    );
-    return;
-  }
-  log.info(`Found sops binary at: ${sopsBinary}`);
 
   const service = new SopsService();
   const fsProvider = new SopsFileSystemProvider(service);
@@ -64,6 +54,18 @@ export async function activate(
 
   updateStatusBar(statusBar, vscode.window.activeTextEditor);
   void fsProvider;
+
+  // Commands must be registered even if sops is missing, otherwise invoking
+  // them surfaces "command not found" instead of this error message.
+  const sopsVersion = await getSopsVersion();
+  if (!sopsVersion) {
+    log.error("sops binary not found on PATH");
+    vscode.window.showErrorMessage(
+      "SOPS binary not found. Install sops and make sure it's on your PATH.",
+    );
+    return;
+  }
+  log.info(`Found sops: ${sopsVersion}`);
 }
 
 export function deactivate(): void {
