@@ -92,9 +92,11 @@ export async function encrypt(
   }
 }
 
-export async function getSopsBinary(): Promise<string | undefined> {
+/** Check that sops is runnable by invoking it, which works on all platforms
+ * (`which` does not exist on Windows). Returns the version string. */
+export async function getSopsVersion(): Promise<string | undefined> {
   return new Promise((resolve) => {
-    execFile("which", ["sops"], (error, stdout) => {
+    execFile("sops", ["--version"], (error, stdout) => {
       if (error) {
         resolve(undefined);
         return;
