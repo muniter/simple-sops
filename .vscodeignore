@@ -6,6 +6,7 @@ out-test/**
 test-fixtures/**
 CLAUDE.md
 AGENTS.md
+CONTEXT.md
 scripts/**
 images/demo.gif
 .gitignore

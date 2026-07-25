@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { SopsService } from "./sops-service.ts";
 import { SopsFileSystemProvider } from "./sops-fs.ts";
-import { isSopsAvailable } from "./sops.ts";
 import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
@@ -30,7 +29,13 @@ export async function activate(
 
     vscode.commands.registerCommand("sops.showOutput", () => log.show()),
 
-    vscode.workspace.onDidOpenTextDocument((doc) => service.onDocumentOpened(doc)),
+    vscode.workspace.onDidOpenTextDocument((doc) => {
+      void service.onDocumentOpened(doc);
+    }),
+
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      service.onConfigurationChanged(event);
+    }),
 
     vscode.window.tabGroups.onDidChangeTabs((e) => {
       for (const tab of e.closed) {
@@ -41,24 +46,17 @@ export async function activate(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       updateStatusBar(statusBar, editor);
       if (editor?.document) {
-        service.onDocumentOpened(editor.document);
+        void service.onDocumentOpened(editor.document);
       }
     }),
 
     statusBar,
   );
 
-  if (!(await isSopsAvailable())) {
-    log.error("sops binary not found on PATH");
-    vscode.window.showErrorMessage(
-      "SOPS binary not found. Install sops and make sure it's on your PATH.",
-    );
-    return;
-  }
-  log.info("Found sops on PATH");
+  await service.initialize();
 
   for (const doc of vscode.workspace.textDocuments) {
-    service.onDocumentOpened(doc);
+    void service.onDocumentOpened(doc);
   }
 
   updateStatusBar(statusBar, vscode.window.activeTextEditor);

@@ -10,11 +10,15 @@ All notable changes to Simple SOPS will be documented in this file.
   activate after Marketplace installation.
 - Register extension commands even when the SOPS executable is unavailable,
   and detect SOPS without relying on platform-specific shell utilities.
+- Preserve explicit decrypt commands while file detection is still running.
 
 ### Added
 
 - Packaged-extension integration tests that install the actual VSIX in an
   isolated VS Code environment.
+- A machine-specific `sops.binaryPath` setting for overriding PATH discovery.
+- Intent-aware SOPS readiness handling with deterministic missing-executable
+  and settings-recovery integration tests.
 
 ## [0.0.1] - 2026-04-04
 
