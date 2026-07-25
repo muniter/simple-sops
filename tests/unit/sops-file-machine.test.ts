@@ -9,6 +9,7 @@ import {
   type SopsFileEmitted,
   type SopsFileLogger,
 } from "../../src/sops-file-machine.ts";
+import { SopsUnavailableError } from "../../src/sops-runtime.ts";
 
 const noopLog: SopsFileLogger = { info: () => {}, error: () => {} };
 
@@ -148,6 +149,26 @@ describe("sopsFileMachine", () => {
   });
 
   describe("manual decrypt", () => {
+    it("preserves DECRYPT while detection is in progress", async () => {
+      let finishDetection: ((isSops: boolean) => void) | undefined;
+      const io = mockIO({
+        detect: sinon.stub().returns(
+          new Promise<boolean>((resolve) => {
+            finishDetection = resolve;
+          }),
+        ),
+      });
+      const { actor } = start("/test/file.sops.yaml", doNothing, io);
+
+      actor.send({ type: "DECRYPT" });
+      finishDetection?.(true);
+
+      await waitFor(actor, (snapshot) => snapshot.value === "decrypted", {
+        timeout: 500,
+      });
+      assert.ok((io.decrypt as sinon.SinonStub).calledOnce);
+    });
+
     it("waits for DECRYPT when do-nothing", async () => {
       const io = mockIO();
       const { actor } = start("/test/file.sops.yaml", doNothing, io);
@@ -171,6 +192,31 @@ describe("sopsFileMachine", () => {
         assertEmitted(emitted, { type: "decryptFailed", error: "no key" });
       });
       assert.ok(actor.getSnapshot().matches({ decrypting: "failed" }));
+    });
+
+    it("preserves unavailable classification and explicit intent", async () => {
+      const io = mockIO({
+        decrypt: sinon.stub().rejects(
+          new SopsUnavailableError("/opt/sops", "not-runnable"),
+        ),
+      });
+      const { actor, emitted } = start(
+        "/test/file.sops.yaml",
+        doNothing,
+        io,
+      );
+
+      await waitFor(actor, (snapshot) => snapshot.value === "encrypted");
+      actor.send({ type: "DECRYPT" });
+
+      await pollUntil(() => {
+        assertEmitted(emitted, {
+          type: "decryptFailed",
+          unavailable: true,
+          executable: "/opt/sops",
+          intent: "explicit",
+        });
+      });
     });
   });
 
@@ -233,6 +279,24 @@ describe("sopsFileMachine", () => {
         assertEmitted(emitted, { type: "encryptFailed", error: "kms error" });
       });
       assert.strictEqual(actor.getSnapshot().value, "decrypted");
+    });
+
+    it("preserves unavailable classification while encrypting", async () => {
+      const { actor, emitted } = await startDecrypted({
+        encrypt: sinon.stub().rejects(
+          new SopsUnavailableError("/opt/sops", "not-runnable"),
+        ),
+      });
+
+      actor.send({ type: "ENCRYPT" });
+
+      await pollUntil(() => {
+        assertEmitted(emitted, {
+          type: "encryptFailed",
+          unavailable: true,
+          executable: "/opt/sops",
+        });
+      });
     });
   });
 

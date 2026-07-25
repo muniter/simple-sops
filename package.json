@@ -107,6 +107,12 @@
           "default": true,
           "description": "Show a decrypt icon button in the editor title bar for SOPS files."
         },
+        "sops.binaryPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Absolute path to the SOPS executable. Leave empty to discover sops from PATH."
+        },
         "sops.env": {
           "type": "object",
           "default": {},
@@ -130,8 +136,8 @@
     "knip:production": "knip --production",
     "lint": "pnpm run eslint && pnpm run typecheck && pnpm run knip",
     "test": "node --test tests/unit/**/*.test.ts",
-    "test:integration": "pnpm run compile:integration && vscode-test --label integration",
-    "test:vsix": "pnpm run package --out .vscode-test/simple-sops.vsix && vscode-test --label vsix",
+    "test:integration": "pnpm run compile:integration && vscode-test --label integration && vscode-test --label no-sops && vscode-test --label binary-path",
+    "test:vsix": "pnpm run package --out .vscode-test/simple-sops.vsix && vscode-test --label vsix && vscode-test --label vsix-no-sops && vscode-test --label vsix-binary-path",
     "test:all": "pnpm run test && pnpm run test:integration && pnpm run test:vsix"
   },
   "dependencies": {

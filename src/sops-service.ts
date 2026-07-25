@@ -12,16 +12,26 @@ import {
   hasSopsMetadata,
   getLanguageId,
 } from "./detect.ts";
-import { decrypt, encrypt, getEncryptedFileMtime } from "./sops.ts";
+import {
+  checkSopsAvailability,
+  decrypt,
+  encrypt,
+  getEncryptedFileMtime,
+} from "./sops.ts";
+import { SopsUnavailableError } from "./sops-runtime.ts";
 import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
 type SopsActor = Actor<typeof sopsFileMachine>;
+type SopsIntent = "startup" | "automatic" | "explicit";
+type SopsReadiness = "unknown" | "available" | "unavailable";
 
 export class SopsService {
   private readonly _actors = new Map<string, SopsActor>();
   private readonly _content = new Map<string, Uint8Array>();
   private readonly _mtimes = new Map<string, number>();
+  private _readiness: SopsReadiness = "unknown";
+  private _unavailableError: SopsUnavailableError | undefined;
 
   private readonly _io: SopsFileIO = {
     detect: async (filePath) => {
@@ -59,6 +69,20 @@ export class SopsService {
       return this._isTabOpen(uri);
     },
   };
+
+  async initialize(): Promise<void> {
+    await this._ensureSopsAvailable("startup");
+  }
+
+  onConfigurationChanged(event: vscode.ConfigurationChangeEvent): void {
+    if (
+      event.affectsConfiguration("sops.binaryPath") ||
+      event.affectsConfiguration("sops.env")
+    ) {
+      this._readiness = "unknown";
+      this._unavailableError = undefined;
+    }
+  }
 
   // --- Actor lifecycle ---
 
@@ -105,8 +129,11 @@ export class SopsService {
 
   // --- Events from VS Code (forwarded by extension.ts) ---
 
-  sendDecrypt(filePath: string): void {
-    this._actors.get(filePath)?.send({ type: "DECRYPT" });
+  sendDecrypt(
+    filePath: string,
+    intent: "automatic" | "explicit" = "explicit",
+  ): void {
+    this._actors.get(filePath)?.send({ type: "DECRYPT", intent });
   }
 
   sendReopen(filePath: string): void {
@@ -142,7 +169,7 @@ export class SopsService {
     }
   }
 
-  onDocumentOpened(doc: vscode.TextDocument): void {
+  async onDocumentOpened(doc: vscode.TextDocument): Promise<void> {
     if (doc.uri.scheme !== "file") {
       return;
     }
@@ -165,10 +192,14 @@ export class SopsService {
       return;
     }
 
+    if (!(await this._ensureSopsAvailable("automatic"))) {
+      return;
+    }
+
     this.track(filePath, config);
   }
 
-  handleDecryptCommand(fileUri?: vscode.Uri): void {
+  async handleDecryptCommand(fileUri?: vscode.Uri): Promise<void> {
     if (!fileUri) {
       const activeUri = vscode.window.activeTextEditor?.document.uri;
       if (!activeUri || activeUri.scheme !== "file") {
@@ -179,13 +210,22 @@ export class SopsService {
     }
 
     const filePath = fileUri.fsPath;
+    if (this.matches(filePath, "decrypted")) {
+      this.sendReopen(filePath);
+      return;
+    }
+
+    if (!(await this._ensureSopsAvailable("explicit"))) {
+      return;
+    }
 
     if (this.matches(filePath, "encrypted") || this.matches(filePath, { decrypting: "failed" }) || this.matches(filePath, "idle")) {
       this.sendDecrypt(filePath);
-    } else if (this.matches(filePath, "decrypted")) {
-      this.sendReopen(filePath);
-    } else if (!this.isTracked(filePath)) {
+    } else if (this.isTracked(filePath)) {
+      this.sendDecrypt(filePath);
+    } else {
       this.track(filePath, this._getConfig());
+      this.sendDecrypt(filePath);
     }
   }
 
@@ -200,6 +240,10 @@ export class SopsService {
   }
 
   async decryptAndBuffer(filePath: string): Promise<Uint8Array> {
+    if (!(await this._ensureSopsAvailable("automatic"))) {
+      throw this._unavailableError ??
+        new Error("SOPS executable is unavailable");
+    }
     log.info(`decryptAndBuffer: cache miss, decrypting ${filePath}`);
     const plaintext = await decrypt(filePath);
     const data = new TextEncoder().encode(plaintext);
@@ -208,6 +252,10 @@ export class SopsService {
   }
 
   async handleEncrypt(filePath: string, overwrite: boolean): Promise<void> {
+    if (!(await this._ensureSopsAvailable("explicit"))) {
+      throw this._unavailableError ??
+        new Error("SOPS executable is unavailable");
+    }
     const actor = this._actors.get(filePath);
     if (!actor) {
       throw new Error(`SOPS: no actor for ${filePath}`);
@@ -239,6 +287,61 @@ export class SopsService {
     });
   }
 
+  private async _ensureSopsAvailable(
+    intent: SopsIntent,
+  ): Promise<boolean> {
+    if (intent !== "explicit" && this._readiness !== "unknown") {
+      return this._readiness === "available";
+    }
+
+    try {
+      await checkSopsAvailability();
+      this._readiness = "available";
+      this._unavailableError = undefined;
+      return true;
+    } catch (error) {
+      const unavailable = error instanceof SopsUnavailableError
+        ? error
+        : new SopsUnavailableError("sops", "not-runnable", {
+          cause: error,
+        });
+      this._readiness = "unavailable";
+      this._unavailableError = unavailable;
+      this._notifySopsUnavailable(unavailable, intent);
+      return false;
+    }
+  }
+
+  private _notifySopsUnavailable(
+    error: SopsUnavailableError,
+    intent: SopsIntent,
+  ): void {
+    log.error(error.message);
+    if (intent === "automatic") {
+      return;
+    }
+
+    const message = error.reason === "invalid-path"
+      ? `The configured SOPS executable path must be absolute: ${error.executable}`
+      : error.executable === "sops"
+      ? "SOPS executable not found. Install SOPS or configure sops.binaryPath."
+      : `SOPS executable is not runnable at ${error.executable}.`;
+    const actions = intent === "explicit"
+      ? ["Open Settings", "Show Output"]
+      : ["Open Settings"];
+
+    void vscode.window.showErrorMessage(message, ...actions).then((choice) => {
+      if (choice === "Open Settings") {
+        void vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "sops.binaryPath",
+        );
+      } else if (choice === "Show Output") {
+        log.show();
+      }
+    });
+  }
+
   // --- Machine event handler ---
 
   private _handleMachineEvent(event: SopsFileEmitted): void {
@@ -246,9 +349,23 @@ export class SopsService {
       case "decrypted":
         void this._openDecryptedTab(event.filePath, event.config);
         break;
-      case "decryptFailed":
-        vscode.window.showErrorMessage(`SOPS decrypt failed: ${event.error}`);
+      case "decryptFailed": {
+        if (event.unavailable) {
+          const unavailable = new SopsUnavailableError(
+            event.executable ?? "sops",
+            "not-runnable",
+          );
+          this._readiness = "unavailable";
+          this._unavailableError = unavailable;
+          this._notifySopsUnavailable(unavailable, event.intent);
+          break;
+        }
+        const message = event.error.startsWith("sops decrypt failed:")
+          ? `SOPS${event.error.slice(4)}`
+          : `SOPS decrypt failed: ${event.error}`;
+        vscode.window.showErrorMessage(message);
         break;
+      }
       case "encrypted": {
         const filename = event.filePath.split("/").pop() ?? "file";
         vscode.window.showInformationMessage(`SOPS: encrypted ${filename}`);
@@ -256,9 +373,23 @@ export class SopsService {
       }
       case "encryptAborted":
         break;
-      case "encryptFailed":
-        vscode.window.showErrorMessage(`SOPS encrypt failed: ${event.error}`);
+      case "encryptFailed": {
+        if (event.unavailable) {
+          const unavailable = new SopsUnavailableError(
+            event.executable ?? "sops",
+            "not-runnable",
+          );
+          this._readiness = "unavailable";
+          this._unavailableError = unavailable;
+          this._notifySopsUnavailable(unavailable, "explicit");
+          break;
+        }
+        const message = event.error.startsWith("sops edit failed:")
+          ? `SOPS encrypt failed:${event.error.slice("sops edit failed:".length)}`
+          : `SOPS encrypt failed: ${event.error}`;
+        vscode.window.showErrorMessage(message);
         break;
+      }
       case "promptDecrypt":
         void this._promptDecrypt(event.filePath);
         break;

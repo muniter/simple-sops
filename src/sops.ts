@@ -1,9 +1,8 @@
-import { execFile } from "node:child_process";
-import { chmod, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { stat } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import * as vscode from "vscode";
 import * as log from "./log.ts";
+import { SopsRuntime } from "./sops-runtime.ts";
 
 /** Path-like env vars that should be resolved relative to the workspace root. */
 const PATH_ENV_VARS = new Set(["SOPS_AGE_KEY_FILE"]);
@@ -37,71 +36,30 @@ function getSopsEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
   return env;
 }
 
-export async function decrypt(filepath: string): Promise<string> {
-  const env = getSopsEnv();
-  return new Promise((resolve, reject) => {
-    execFile("sops", ["decrypt", filepath], { env }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(`sops decrypt failed: ${stderr || error.message}`));
-        return;
-      }
-      resolve(stdout);
-    });
-  });
+function getSopsBinaryPath(): string {
+  return vscode.workspace
+    .getConfiguration("sops")
+    .get<string>("binaryPath", "");
 }
 
-export async function encrypt(
-  filepath: string,
+const runtime = new SopsRuntime({
+  getBinaryPath: getSopsBinaryPath,
+  getEnvironment: getSopsEnv,
+});
+
+export function decrypt(filePath: string): Promise<string> {
+  return runtime.decrypt(filePath);
+}
+
+export function encrypt(
+  filePath: string,
   plaintext: string,
 ): Promise<void> {
-  // Same EDITOR trick as the Neovim plugin:
-  // 1. Write plaintext to a temp file
-  // 2. Create a shell script that copies it into the file sops provides
-  // 3. Run `EDITOR=<script> sops edit <file>`
-  // This lets sops handle all key management (KMS, age, PGP, etc.)
-
-  const tempDir = await mkdtemp(join(tmpdir(), "vscode-sops-"));
-  const contentFile = join(tempDir, "content");
-  const scriptFile = join(tempDir, "editor.sh");
-
-  try {
-    await writeFile(contentFile, plaintext);
-    await writeFile(scriptFile, `#!/bin/sh\ncat "${contentFile}" > "$1"\n`);
-    await chmod(scriptFile, 0o755);
-
-    const env = getSopsEnv({ EDITOR: scriptFile });
-
-    await new Promise<void>((resolve, reject) => {
-      execFile(
-        "sops",
-        ["edit", filepath],
-        { env },
-        (error, _stdout, stderr) => {
-          if (error) {
-            reject(
-              new Error(`sops encrypt failed: ${stderr || error.message}`),
-            );
-            return;
-          }
-          resolve();
-        },
-      );
-    });
-  } finally {
-    await rm(tempDir, { recursive: true, force: true });
-  }
+  return runtime.encrypt(filePath, plaintext);
 }
 
-export async function getSopsBinary(): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    execFile("which", ["sops"], (error, stdout) => {
-      if (error) {
-        resolve(undefined);
-        return;
-      }
-      resolve(stdout.trim());
-    });
-  });
+export function checkSopsAvailability(): Promise<void> {
+  return runtime.checkAvailability();
 }
 
 /** Read the mtime of the real file on disk. */

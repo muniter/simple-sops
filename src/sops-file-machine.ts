@@ -1,4 +1,5 @@
 import { setup, assign, emit, fromPromise, fromCallback } from "xstate";
+import { SopsUnavailableError } from "./sops-runtime.ts";
 
 export interface SopsFileConfig {
   action: "auto-open" | "prompt" | "do-nothing";
@@ -30,6 +31,8 @@ interface SopsFileContext {
   config: SopsFileConfig;
   io: SopsFileIO;
   log: SopsFileLogger;
+  decryptRequested: boolean;
+  decryptIntent: "automatic" | "explicit";
   error: string | undefined;
 }
 
@@ -37,21 +40,39 @@ type SopsFileEvent =
   | { type: "DETECTED_SOPS" }
   | { type: "DETECTED_NOT_SOPS" }
   | { type: "DETECT_ERROR"; error: string }
-  | { type: "DECRYPT" }
+  | { type: "DECRYPT"; intent?: "automatic" | "explicit" }
   | { type: "ENCRYPT"; overwrite?: boolean }
   | { type: "ENCRYPT_SUCCESS" }
   | { type: "ENCRYPT_ABORTED"; reason: string }
-  | { type: "ENCRYPT_FAILED"; error: string }
+  | {
+    type: "ENCRYPT_FAILED";
+    error: string;
+    unavailable: boolean;
+    executable?: string;
+  }
   | { type: "REOPEN" }
   | { type: "DECRYPTED_TAB_CLOSED" }
   | { type: "ENCRYPTED_TAB_CLOSED" };
 
 export type SopsFileEmitted =
   | { type: "decrypted"; filePath: string; config: SopsFileConfig }
-  | { type: "decryptFailed"; filePath: string; error: string }
+  | {
+    type: "decryptFailed";
+    filePath: string;
+    error: string;
+    unavailable: boolean;
+    executable?: string;
+    intent: "automatic" | "explicit";
+  }
   | { type: "encrypted"; filePath: string }
   | { type: "encryptAborted"; filePath: string; reason: string }
-  | { type: "encryptFailed"; filePath: string; error: string }
+  | {
+    type: "encryptFailed";
+    filePath: string;
+    error: string;
+    unavailable: boolean;
+    executable?: string;
+  }
   | { type: "promptDecrypt"; filePath: string }
   | { type: "alreadyDecrypted"; filePath: string };
 
@@ -100,7 +121,12 @@ export const sopsFileMachine = setup({
     encrypt: fromCallback<
       | { type: "ENCRYPT_SUCCESS" }
       | { type: "ENCRYPT_ABORTED"; reason: string }
-      | { type: "ENCRYPT_FAILED"; error: string },
+      | {
+        type: "ENCRYPT_FAILED";
+        error: string;
+        unavailable: boolean;
+        executable?: string;
+      },
       { io: SopsFileIO; filePath: string; overwrite: boolean }
     >(({ sendBack, input }) => {
       void (async () => {
@@ -133,13 +159,20 @@ export const sopsFileMachine = setup({
           sendBack({ type: "ENCRYPT_SUCCESS" });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          sendBack({ type: "ENCRYPT_FAILED", error: message });
+          const unavailable = err instanceof SopsUnavailableError;
+          sendBack({
+            type: "ENCRYPT_FAILED",
+            error: message,
+            unavailable,
+            executable: unavailable ? err.executable : undefined,
+          });
         }
       })();
     }),
   },
   guards: {
-    isAutoOpen: ({ context }) => context.config.action === "auto-open",
+    shouldDecrypt: ({ context }) =>
+      context.config.action === "auto-open" || context.decryptRequested,
     isPrompt: ({ context }) => context.config.action === "prompt",
     isEncryptedTabOpen: ({ context }) => context.io.isTabOpen(context.filePath, "file"),
   },
@@ -150,6 +183,8 @@ export const sopsFileMachine = setup({
     config: input.config,
     io: input.io,
     log: input.log,
+    decryptRequested: false,
+    decryptIntent: "automatic",
     error: undefined,
   }),
   initial: "detecting",
@@ -161,6 +196,10 @@ export const sopsFileMachine = setup({
       },
       on: {
         DETECTED_SOPS: [
+          {
+            guard: "shouldDecrypt",
+            target: "encrypted",
+          },
           {
             guard: "isPrompt",
             target: "encrypted",
@@ -176,16 +215,27 @@ export const sopsFileMachine = setup({
           target: "done",
           actions: assign({ error: ({ event }) => event.error }),
         },
+        DECRYPT: {
+          actions: assign({
+            decryptRequested: true,
+            decryptIntent: ({ event }) => event.intent ?? "explicit",
+          }),
+        },
       },
     },
 
     encrypted: {
       always: {
-        guard: "isAutoOpen",
+        guard: "shouldDecrypt",
         target: "decrypting",
       },
       on: {
-        DECRYPT: "decrypting",
+        DECRYPT: {
+          target: "decrypting",
+          actions: assign({
+            decryptIntent: ({ event }) => event.intent ?? "explicit",
+          }),
+        },
         ENCRYPTED_TAB_CLOSED: "done",
       },
     },
@@ -217,21 +267,35 @@ export const sopsFileMachine = setup({
                       ? event.error.message
                       : String(event.error),
                 }),
-                emit(({ context, event }) => ({
-                  type: "decryptFailed" as const,
-                  filePath: context.filePath,
-                  error:
-                    event.error instanceof Error
-                      ? event.error.message
-                      : String(event.error),
-                })),
+                emit(({ context, event }) => {
+                  const unavailableError =
+                    event.error instanceof SopsUnavailableError
+                      ? event.error
+                      : undefined;
+                  return {
+                    type: "decryptFailed" as const,
+                    filePath: context.filePath,
+                    error:
+                      event.error instanceof Error
+                        ? event.error.message
+                        : String(event.error),
+                    unavailable: unavailableError !== undefined,
+                    executable: unavailableError?.executable,
+                    intent: context.decryptIntent,
+                  };
+                }),
               ],
             },
           },
         },
         failed: {
           on: {
-            DECRYPT: "active",
+            DECRYPT: {
+              target: "active",
+              actions: assign({
+                decryptIntent: ({ event }) => event.intent ?? "explicit",
+              }),
+            },
             ENCRYPTED_TAB_CLOSED: "#sopsFile.done",
           },
         },
@@ -296,6 +360,8 @@ export const sopsFileMachine = setup({
               type: "encryptFailed" as const,
               filePath: context.filePath,
               error: event.error,
+              unavailable: event.unavailable,
+              executable: event.executable,
             })),
           ],
         },
@@ -308,7 +374,12 @@ export const sopsFileMachine = setup({
         context.io.clearBuffer(context.filePath);
       },
       on: {
-        DECRYPT: "decrypting",
+        DECRYPT: {
+          target: "decrypting",
+          actions: assign({
+            decryptIntent: ({ event }) => event.intent ?? "explicit",
+          }),
+        },
         ENCRYPTED_TAB_CLOSED: "done",
       },
     },

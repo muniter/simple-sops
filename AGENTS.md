@@ -19,13 +19,14 @@ re-encrypts on save. Plaintext must never be written to the workspace.
 ## Architecture
 
 - `src/sops-service.ts` - Core orchestrator. Owns actor lifecycle, I/O,
-  machine events, and UI logic.
+  machine events, SOPS readiness policy, and UI logic.
 - `src/sops-file-machine.ts` - XState machine defining the file lifecycle.
 - `src/sops-fs.ts` - Thin VS Code `FileSystemProvider` delegating to the
   service.
 - `src/extension.ts` - Thin VS Code glue registering events and commands.
-- `src/sops.ts` - SOPS CLI wrapper for decrypting and encrypting via the
-  `EDITOR` mechanism.
+- `src/sops.ts` - VS Code configuration adapter for the SOPS runtime.
+- `src/sops-runtime.ts` - Deep process adapter for executable resolution,
+  availability, decrypting, and encrypting via the `EDITOR` mechanism.
 - `src/detect.ts` - SOPS file detection by filename and metadata.
 - `src/log.ts` - Output-channel logging.
 

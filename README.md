@@ -15,7 +15,8 @@ Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops)
 
 ## Requirements
 
-- [SOPS](https://github.com/getsops/sops) must be installed and available on your `PATH`
+- [SOPS](https://github.com/getsops/sops) must be installed and available on
+  your `PATH`, or configured with `sops.binaryPath`
 - A configured encryption backend (age, AWS KMS, GCP KMS, Azure Key Vault, PGP)
 
 ## Extension Settings
@@ -25,6 +26,7 @@ Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops)
 | `sops.action` | `auto-open` | What to do when a SOPS file is opened: `auto-open`, `prompt`, or `do-nothing` |
 | `sops.encryptedFileTab` | `close` | Close or keep the encrypted tab after opening the decrypted view |
 | `sops.showDecryptButton` | `true` | Show a decrypt button in the editor title bar |
+| `sops.binaryPath` | `""` | Absolute path to the SOPS executable. Empty discovers `sops` from `PATH`. |
 | `sops.env` | `{}` | Environment variables passed to SOPS (e.g. `SOPS_AGE_KEY_FILE`). Relative paths are resolved from the workspace root. |
 
 ## Commands
