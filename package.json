@@ -120,6 +120,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run lint && pnpm run test && pnpm run compile:integration",
+    "package": "pnpm run vscode:prepublish && node scripts/package-vsix.mjs",
+    "publish:marketplace": "pnpm run package --out .vscode-test/simple-sops.vsix && vsce publish --packagePath .vscode-test/simple-sops.vsix",
     "compile:integration": "tsc -p tsconfig.integration.json",
     "watch": "tsgo -watch -p ./ --noEmit",
     "typecheck": "tsgo -p ./ --noEmit && tsc -p tsconfig.integration.json --noEmit",
@@ -129,7 +131,8 @@
     "lint": "pnpm run eslint && pnpm run typecheck && pnpm run knip",
     "test": "node --test tests/unit/**/*.test.ts",
     "test:integration": "pnpm run compile:integration && vscode-test --label integration",
-    "test:all": "pnpm run test && pnpm run test:integration"
+    "test:vsix": "pnpm run package --out .vscode-test/simple-sops.vsix && vscode-test --label vsix",
+    "test:all": "pnpm run test && pnpm run test:integration && pnpm run test:vsix"
   },
   "dependencies": {
     "xstate": "^5.30.0"
@@ -137,8 +140,7 @@
   "knip": {
     "entry": [
       "tests/unit/**/*.test.ts",
-      "tests/integration/**/*.test.ts",
-      ".vscode-test.mjs"
+      "tests/integration/**/*.test.ts"
     ],
     "ignoreDependencies": [
       "@vscode/test-electron"
@@ -152,6 +154,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260404.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.2",
     "eslint": "^9.39.3",
     "knip": "^6.3.0",
     "sinon": "^19.0.2",

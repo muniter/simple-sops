@@ -5,6 +5,8 @@ out/**
 out-test/**
 test-fixtures/**
 CLAUDE.md
+AGENTS.md
+scripts/**
 images/demo.gif
 .gitignore
 .npmrc

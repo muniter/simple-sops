@@ -51,8 +51,28 @@ suite("SOPS Extension Integration", () => {
   test("extension activates", async () => {
     const ext = vscode.extensions.getExtension("javierlopez.simple-sops");
     assert.ok(ext, "Extension should be installed");
+    if (process.env.SIMPLE_SOPS_EXPECT_PACKAGED === "1") {
+      assert.notStrictEqual(
+        path.resolve(ext.extensionPath),
+        path.resolve(__dirname, ".."),
+        "Test should load the installed VSIX, not the source checkout",
+      );
+    }
     await ext.activate();
     assert.strictEqual(ext.isActive, true);
+  });
+
+  test("xstate production dependency is installed", async () => {
+    const ext = vscode.extensions.getExtension("javierlopez.simple-sops");
+    assert.ok(ext, "Extension should be installed");
+    const xstateManifest = vscode.Uri.joinPath(
+      ext.extensionUri,
+      "node_modules",
+      "xstate",
+      "package.json",
+    );
+    const stat = await vscode.workspace.fs.stat(xstateManifest);
+    assert.strictEqual(stat.type, vscode.FileType.File);
   });
 
   test("sops.decrypt command is registered", async () => {

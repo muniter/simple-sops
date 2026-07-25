@@ -1,0 +1,10 @@
+{
+  "name": "simple-sops-vsix-test-harness",
+  "displayName": "Simple SOPS VSIX Test Harness",
+  "version": "0.0.0",
+  "publisher": "simple-sops-tests",
+  "private": true,
+  "engines": {
+    "vscode": "^1.114.0"
+  }
+}

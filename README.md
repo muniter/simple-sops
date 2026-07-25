@@ -41,6 +41,26 @@ Seamlessly decrypt, edit, and re-encrypt [SOPS](https://github.com/getsops/sops)
 3. When you save, it uses the `EDITOR` trick (`sops edit`) to re-encrypt - all key management is delegated to SOPS
 4. The decrypted content only exists in memory, never written to disk
 
+## Development
+
+The extension ships its TypeScript source directly and relies on the Node.js
+runtime embedded in VS Code to strip erasable types. Production dependencies
+are included unbundled in the VSIX.
+
+```bash
+pnpm install
+pnpm test
+pnpm run test:integration
+pnpm run test:vsix
+```
+
+`test:integration` loads the source checkout in a VS Code extension host.
+`test:vsix` builds and installs the actual VSIX in an isolated VS Code
+environment, ensuring the published artifact contains its runtime dependencies.
+
+Use `pnpm run package` to create a VSIX and
+`pnpm run publish:marketplace` to publish that tested package shape.
+
 ## License
 
 MIT

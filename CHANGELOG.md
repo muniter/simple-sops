@@ -2,6 +2,18 @@
 
 All notable changes to Simple SOPS will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Include runtime dependencies in the published VSIX so the extension can
+  activate after Marketplace installation.
+
+### Added
+
+- Packaged-extension integration tests that install the actual VSIX in an
+  isolated VS Code environment.
+
 ## [0.0.1] - 2026-04-04
 
 ### Added
