@@ -8,6 +8,8 @@ All notable changes to Simple SOPS will be documented in this file.
 
 - Include runtime dependencies in the published VSIX so the extension can
   activate after Marketplace installation.
+- Register extension commands even when the SOPS executable is unavailable,
+  and detect SOPS without relying on platform-specific shell utilities.
 
 ### Added
 

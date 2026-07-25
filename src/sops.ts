@@ -92,14 +92,16 @@ export async function encrypt(
   }
 }
 
-export async function getSopsBinary(): Promise<string | undefined> {
+/**
+ * Check that sops is runnable on the current platform.
+ *
+ * `--help` avoids the network update check performed by some SOPS versions
+ * when invoked with `--version`.
+ */
+export async function isSopsAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
-    execFile("which", ["sops"], (error, stdout) => {
-      if (error) {
-        resolve(undefined);
-        return;
-      }
-      resolve(stdout.trim());
+    execFile("sops", ["--help"], { env: getSopsEnv() }, (error) => {
+      resolve(error === null);
     });
   });
 }

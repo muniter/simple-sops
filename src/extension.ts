@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { SopsService } from "./sops-service.ts";
 import { SopsFileSystemProvider } from "./sops-fs.ts";
-import { getSopsBinary } from "./sops.ts";
+import { isSopsAvailable } from "./sops.ts";
 import * as log from "./log.ts";
 
 const SOPS_SCHEME = "sops";
@@ -11,16 +11,6 @@ export async function activate(
 ): Promise<void> {
   context.subscriptions.push(log.init());
   log.info("SOPS Edit extension activating...");
-
-  const sopsBinary = await getSopsBinary();
-  if (!sopsBinary) {
-    log.error("sops binary not found on PATH");
-    vscode.window.showErrorMessage(
-      "SOPS binary not found. Install sops and make sure it's on your PATH.",
-    );
-    return;
-  }
-  log.info(`Found sops binary at: ${sopsBinary}`);
 
   const service = new SopsService();
   const fsProvider = new SopsFileSystemProvider(service);
@@ -57,6 +47,15 @@ export async function activate(
 
     statusBar,
   );
+
+  if (!(await isSopsAvailable())) {
+    log.error("sops binary not found on PATH");
+    vscode.window.showErrorMessage(
+      "SOPS binary not found. Install sops and make sure it's on your PATH.",
+    );
+    return;
+  }
+  log.info("Found sops on PATH");
 
   for (const doc of vscode.workspace.textDocuments) {
     service.onDocumentOpened(doc);
