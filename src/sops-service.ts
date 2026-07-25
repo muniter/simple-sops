@@ -75,7 +75,10 @@ export class SopsService {
   }
 
   onConfigurationChanged(event: vscode.ConfigurationChangeEvent): void {
-    if (event.affectsConfiguration("sops.binaryPath")) {
+    if (
+      event.affectsConfiguration("sops.binaryPath") ||
+      event.affectsConfiguration("sops.env")
+    ) {
       this._readiness = "unknown";
       this._unavailableError = undefined;
     }
@@ -207,14 +210,17 @@ export class SopsService {
     }
 
     const filePath = fileUri.fsPath;
+    if (this.matches(filePath, "decrypted")) {
+      this.sendReopen(filePath);
+      return;
+    }
+
     if (!(await this._ensureSopsAvailable("explicit"))) {
       return;
     }
 
     if (this.matches(filePath, "encrypted") || this.matches(filePath, { decrypting: "failed" }) || this.matches(filePath, "idle")) {
       this.sendDecrypt(filePath);
-    } else if (this.matches(filePath, "decrypted")) {
-      this.sendReopen(filePath);
     } else if (this.isTracked(filePath)) {
       this.sendDecrypt(filePath);
     } else {
